@@ -152,14 +152,14 @@ dataloaders = {
     'test': test_loader
 }
 
-# print("Training AlexNet")
-#
-# # Entraîner le modèle
-# train_model(alexnet, dataloaders, criterion, optimizer, device, num_epochs=10)
-#
-# # Évaluer sur le test set
-# test_loss, test_acc = evaluate_model(alexnet, dataloaders['test'], criterion, device)
-# print(f"Test Loss: {test_loss:.4f} Test Acc: {test_acc:.4f}")
+print("Training AlexNet")
+
+# Entraîner le modèle
+train_model(alexnet, dataloaders, criterion, optimizer, device, num_epochs=10)
+
+# Évaluer sur le test set
+test_loss, test_acc = evaluate_model(alexnet, dataloaders['test'], criterion, device)
+print(f"Test Loss: {test_loss:.4f} Test Acc: {test_acc:.4f}")
 
 ######################
 #      Custom        #
