@@ -151,15 +151,131 @@ dataloaders = {
     'val': val_loader,
     'test': test_loader
 }
+import matplotlib.pyplot as plt
+from sklearn.metrics import classification_report, cohen_kappa_score
+
+def train_model(model, dataloaders, criterion, optimizer, device, num_epochs=10):
+    train_losses, val_losses = [], []
+    train_accuracies, val_accuracies = [], []
+
+    for epoch in range(num_epochs):
+        print(f"Epoch {epoch+1}/{num_epochs}")
+
+        # Phase d'entraînement
+        model.train()
+        running_loss = 0.0
+        running_corrects = 0
+
+        for inputs, labels in dataloaders['train']:
+            inputs, labels = inputs.to(device), labels.to(device)
+
+            optimizer.zero_grad()
+
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item() * inputs.size(0)
+            _, preds = torch.max(outputs, 1)
+            running_corrects += torch.sum(preds == labels.data)
+
+        epoch_loss = running_loss / len(dataloaders['train'].dataset)
+        epoch_acc = running_corrects.double() / len(dataloaders['train'].dataset)
+        train_losses.append(epoch_loss)
+        train_accuracies.append(epoch_acc.item())
+
+        # Phase de validation
+        val_loss, val_acc = evaluate_model(model, dataloaders['val'], criterion, device)
+        val_losses.append(val_loss)
+        val_accuracies.append(val_acc.item())
+
+        print(f"Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}")
+        print(f"Val Loss: {val_loss:.4f} Val Acc: {val_acc:.4f}")
+        print("-" * 10)
+
+    # Retourner les statistiques pour traçage
+    return train_losses, val_losses, train_accuracies, val_accuracies
+
+def evaluate_model_with_metrics(model, dataloader, criterion, device):
+    model.eval()
+    running_loss = 0.0
+    running_corrects = 0
+    all_preds = []
+    all_labels = []
+
+    with torch.no_grad():
+        for inputs, labels in dataloader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+
+            running_loss += loss.item() * inputs.size(0)
+            _, preds = torch.max(outputs, 1)
+            running_corrects += torch.sum(preds == labels.data)
+
+            all_preds.extend(preds.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    total_loss = running_loss / len(dataloader.dataset)
+    total_acc = running_corrects.double() / len(dataloader.dataset)
+
+    # Calculer le coefficient de Kappa
+    kappa_score = cohen_kappa_score(all_labels, all_preds)
+
+    # Produire un rapport de classification
+    report = classification_report(all_labels, all_preds, target_names=['Class 0', 'Class 1'])
+
+    return total_loss, total_acc, kappa_score, report
+
+def plot_learning_curves(train_losses, val_losses, train_accuracies, val_accuracies, model_name):
+    epochs = range(1, len(train_losses) + 1)
+
+    # Plot des pertes
+    plt.figure(figsize=(12, 5))
+    plt.subplot(1, 2, 1)
+    plt.plot(epochs, train_losses, label='Training Loss')
+    plt.plot(epochs, val_losses, label='Validation Loss')
+    plt.title(f'{model_name} - Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.legend()
+
+    # Plot des précisions
+    plt.subplot(1, 2, 2)
+    plt.plot(epochs, train_accuracies, label='Training Accuracy')
+    plt.plot(epochs, val_accuracies, label='Validation Accuracy')
+    plt.title(f'{model_name} - Accuracy')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+
+######################
+#      AlexNet       #
+######################
 
 print("Training AlexNet")
 
-# Entraîner le modèle
-train_model(alexnet, dataloaders, criterion, optimizer, device, num_epochs=10)
+# Entraîner le modèle AlexNet
+train_losses, val_losses, train_accuracies, val_accuracies = train_model(
+    alexnet, dataloaders, criterion, optimizer, device, num_epochs=10
+)
 
-# Évaluer sur le test set
-test_loss, test_acc = evaluate_model(alexnet, dataloaders['test'], criterion, device)
+# Évaluer sur le test set avec métriques
+test_loss, test_acc, kappa_score, report = evaluate_model_with_metrics(
+    alexnet, dataloaders['test'], criterion, device
+)
+
 print(f"Test Loss: {test_loss:.4f} Test Acc: {test_acc:.4f}")
+print(f"Kappa Score: {kappa_score:.4f}")
+print(f"Classification Report:\n{report}")
+
+# Tracer les courbes d'apprentissage pour AlexNet
+plot_learning_curves(train_losses, val_losses, train_accuracies, val_accuracies, "AlexNet")
 
 ######################
 #      Custom        #
@@ -178,9 +294,20 @@ optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
 
 print("Training Custom CNN")
 
-# Entraîner le modèle
-train_model(model, dataloaders, criterion, optimizer, device, num_epochs=10)
+# Entraîner le modèle Custom CNN
+train_losses, val_losses, train_accuracies, val_accuracies = train_model(
+    model, dataloaders, criterion, optimizer, device, num_epochs=10
+)
 
-# Évaluer sur le test set
-test_loss, test_acc = evaluate_model(alexnet, dataloaders['test'], criterion, device)
+# Évaluer sur le test set avec métriques
+test_loss, test_acc, kappa_score, report = evaluate_model_with_metrics(
+    model, dataloaders['test'], criterion, device
+)
+
 print(f"Test Loss: {test_loss:.4f} Test Acc: {test_acc:.4f}")
+print(f"Kappa Score: {kappa_score:.4f}")
+print(f"Classification Report:\n{report}")
+
+# Tracer les courbes d'apprentissage pour le Custom CNN
+plot_learning_curves(train_losses, val_losses, train_accuracies, val_accuracies, "Custom CNN")
+
